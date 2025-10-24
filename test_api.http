@@ -1,0 +1,107 @@
+### Eagle Chat Server API Tests
+### To use: Install REST Client extension in VS Code or use with IntelliJ IDEA
+
+### Variables
+@baseUrl = http://localhost:8000
+@contentType = application/json
+
+### 1. Health Check
+GET {{baseUrl}}/
+Accept: {{contentType}}
+
+### 2. Register a new tenant
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://example-wordpress.com",
+  "admin_email": "admin@example.com",
+  "callback_token": "test_token_1234567890abcdef"
+}
+
+### 3. Register another tenant (different site)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://another-site.com",
+  "admin_email": "admin@another-site.com",
+  "callback_token": "another_test_token_xyz789"
+}
+
+### 4. Try to register with existing site URL (should fail)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://example-wordpress.com",
+  "admin_email": "different@email.com",
+  "callback_token": "some_callback_token_456"
+}
+
+### 5. Try to register with existing email (should fail)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://new-site.com",
+  "admin_email": "admin@example.com",
+  "callback_token": "new_site_callback_token_789"
+}
+
+### 6. Validate tenant (use actual tenant_id and api_key from registration response)
+POST {{baseUrl}}/api/v1/validate
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "YOUR-TENANT-ID-HERE",
+  "api_key": "YOUR-API-KEY-HERE"
+}
+
+### 7. Validate with invalid credentials (should fail)
+POST {{baseUrl}}/api/v1/validate
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "00000000-0000-0000-0000-000000000000",
+  "api_key": "invalid_api_key_12345"
+}
+
+### 8. Test invalid email format (should fail)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://test-site.com",
+  "admin_email": "not-an-email",
+  "callback_token": "test_callback_token_invalid_email"
+}
+
+### 9. Test invalid URL format (should fail)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "not-a-url",
+  "admin_email": "test@example.com",
+  "callback_token": "test_callback_token_invalid_url"
+}
+
+### 10. Test with short callback token (should fail)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://valid-site.com",
+  "admin_email": "valid@email.com",
+  "callback_token": "short"
+}
+
+### 11. Test without callback token (should fail)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://no-token-site.com",
+  "admin_email": "notoken@email.com"
+}
