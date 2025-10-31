@@ -49,12 +49,7 @@ pip install -r requirements.txt
 
 ### 4. Configure the Application
 
-1. Copy the example configuration:
-   ```bash
-   cp config.example.json config.json
-   ```
-
-2. Edit `config.json` with your Supabase credentials:
+1. Create `config.json` with your settings:
    ```json
    {
      "supabase": {
@@ -69,7 +64,8 @@ pip install -r requirements.txt
      "api": {
        "title": "Eagle Chat Server",
        "description": "Multi-tenant chatbot backend for WordPress",
-       "version": "1.0.0"
+       "version": "1.0.0",
+       "development_mode": false
      },
      "callback": {
        "retry_attempts": 3,
@@ -77,6 +73,12 @@ pip install -r requirements.txt
      }
    }
    ```
+
+   **Configuration sections:**
+   - `supabase`: Database connection settings
+   - `logging`: Log level, retention, and directory settings  
+   - `api`: API metadata and development mode toggle
+   - `callback`: WordPress callback verification retry settings
 
    **Finding your Supabase credentials:**
    - URL: Settings → API → Project URL

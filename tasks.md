@@ -1,29 +1,12 @@
-Change to registration process to include callback token. 
+Code Organization
+Create a plan to better organize the code. The plan needs to be approved before code changes are made. Existing endpoints for the api should not be broken by the changes.
 
-Workflow
-1. User installs plugin on wordpress and clicks to Register in Wordpress admin area
-2. Fast API Register_tenant is called sith site_url, admin_email, and callback_token (random token WordPress generates that expires in 60 seconds)
-3. FastAPI immediately calls back to WordPress with the token:
+AI Service
+- Put in own folder and break out based on AI model. We can further break out code into functionaly named files. For example, validations, conversation, etc. Use names
+that make sense to a user. This will allow us to have additional files when we add more functionalty like vector operations and RAG.
 
-POST https://site_url/wp-json/eaglechat-plugin/v1/verify
-Sends the callback_token
+Database
+- Organize the database functions and add a readme
 
-4. WordPress plugin endpoint verifies:
-
-Token matches what it just sent
-Returns success (or fail if token doesn't match)
-
-5. On success, FastAPI generates the uuid and api key which is stored in supabase and returned to wordpress.
-
-Notes:
-- Wordpress isn't handled in this code, details are provided for context and clarity. 
-- Retry login with delays (number of retry and delay seconds configurable in config.json. Default is 3 and 3)
-
-Also update config.example.json
-
-Post Implementation
-- Update readme and any testing for the new process
-
-
-
-
+Other
+- Organize into folders where it makes sense. Update file names when appropriate. It is OK to not organize a file into folder where it's logical to do that.
