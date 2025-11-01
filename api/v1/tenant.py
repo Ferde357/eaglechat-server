@@ -70,8 +70,8 @@ async def register_tenant(request: TenantRegistrationRequest):
             from core.security.encryption import encryption
             hmac_secret_encrypted = encryption.encrypt(request.hmac_secret)
             
-            # Generate site verification hash
-            site_hash = encryption.generate_site_hash(request.site_domain, tenant_id)
+            # Generate site verification hash using the HMAC secret
+            site_hash = encryption.generate_site_hash(request.site_domain, tenant_id, request.hmac_secret)
             hmac_configured = True
             
             logger.info(f"HMAC and domain verification configured for tenant: {tenant_id}")

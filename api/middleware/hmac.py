@@ -157,18 +157,17 @@ async def hmac_middleware(request: Request, call_next: Callable):
                 detail="HMAC authentication failed: Invalid origin domain"
             )
         
-        # Validate site hash if provided (temporarily disabled for debugging)
+        # Validate site hash if provided
         if site_hash_header:
             expected_site_hash = tenant_hmac_data.get('site_hash')
-            logger.info(f"Site hash validation - Expected: {expected_site_hash}, Received: {site_hash_header}")
-            logger.warning(f"Site hash validation temporarily disabled - would have failed")
-            # TODO: Fix site hash calculation mismatch between WordPress and FastAPI
-            # if expected_site_hash and site_hash_header != expected_site_hash:
-            #     logger.warning(f"HMAC authentication failed: Site hash mismatch for tenant {tenant_id}")
-            #     raise HTTPException(
-            #         status_code=401,
-            #         detail="HMAC authentication failed: Invalid site hash"
-            #     )
+            if expected_site_hash and site_hash_header != expected_site_hash:
+                logger.warning(f"HMAC authentication failed: Site hash mismatch for tenant {tenant_id}")
+                logger.warning(f"Expected site hash: {expected_site_hash}")
+                logger.warning(f"Received site hash: {site_hash_header}")
+                raise HTTPException(
+                    status_code=401,
+                    detail="HMAC authentication failed: Invalid site hash"
+                )
     
     # Validate HMAC signature with domain enhancement if available
     is_valid = hmac_validator.validate_signature(

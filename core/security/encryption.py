@@ -61,11 +61,12 @@ class Encryption:
             logger.error(f"Decryption failed: {str(e)}")
             raise
     
-    def generate_site_hash(self, domain: str, tenant_id: str) -> str:
-        """Generate site verification hash"""
+    def generate_site_hash(self, domain: str, tenant_id: str, hmac_secret: str) -> str:
+        """Generate site verification hash using shared HMAC secret"""
         try:
-            # Combine domain, tenant_id, and secret for uniqueness
-            hash_data = f"{domain}|{tenant_id}|{settings.api.secret_key}".encode('utf-8')
+            # Use HMAC secret instead of API secret key for hash generation
+            # This allows both WordPress and FastAPI to calculate the same hash
+            hash_data = f"{domain}|{tenant_id}|{hmac_secret}".encode('utf-8')
             
             # Generate SHA256 hash
             site_hash = hashlib.sha256(hash_data).hexdigest()
