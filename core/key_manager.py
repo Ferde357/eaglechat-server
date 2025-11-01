@@ -236,11 +236,130 @@ class SecureKeyManager:
             logger.error(f"Failed to rotate API keys for tenant {tenant_id}: {str(e)}")
             return False
     
+    async def store_tenant_hmac_secret(self, tenant_id: str, hmac_secret: str) -> bool:
+        """Store encrypted HMAC secret for tenant"""
+        try:
+            # Encrypt the HMAC secret
+            encrypted_secret = self._encrypt_key(hmac_secret)
+            
+            # Store in Supabase
+            from database import db
+            result = await db.store_tenant_hmac_secret(tenant_id, encrypted_secret)
+            
+            if result.get('success'):
+                # Update cache
+                if tenant_id not in self._cache:
+                    self._cache[tenant_id] = {}
+                self._cache[tenant_id]['hmac_secret'] = hmac_secret
+                
+                logger.info(f"HMAC secret stored for tenant: {tenant_id}")
+                return True
+            else:
+                logger.error(f"Failed to store HMAC secret in Supabase for tenant {tenant_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to store HMAC secret for tenant {tenant_id}: {str(e)}")
+            return False
+    
+    async def get_tenant_hmac_secret(self, tenant_id: str) -> Optional[str]:
+        """Retrieve and decrypt HMAC secret for tenant"""
+        try:
+            # Check cache first
+            if tenant_id in self._cache and 'hmac_secret' in self._cache[tenant_id]:
+                return self._cache[tenant_id]['hmac_secret']
+            
+            # Fetch from Supabase
+            from database import db
+            tenant_data = await db.get_tenant_hmac_secret(tenant_id)
+            if not tenant_data or not tenant_data.get('hmac_secret_encrypted'):
+                return None
+            
+            # Decrypt the secret
+            encrypted_secret = tenant_data['hmac_secret_encrypted']
+            decrypted_secret = self._decrypt_key(encrypted_secret)
+            
+            # Cache the decrypted secret
+            if tenant_id not in self._cache:
+                self._cache[tenant_id] = {}
+            self._cache[tenant_id]['hmac_secret'] = decrypted_secret
+            
+            return decrypted_secret
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve HMAC secret for tenant {tenant_id}: {str(e)}")
+            return None
+    
+    async def generate_tenant_hmac_secret(self, tenant_id: str) -> Optional[str]:
+        """Generate new HMAC secret for tenant"""
+        try:
+            import secrets
+            
+            # Generate cryptographically secure random secret (32 bytes = 64 hex chars)
+            hmac_secret = secrets.token_hex(32)
+            
+            # Store the secret
+            success = await self.store_tenant_hmac_secret(tenant_id, hmac_secret)
+            
+            if success:
+                logger.info(f"Generated new HMAC secret for tenant: {tenant_id}")
+                return hmac_secret
+            else:
+                logger.error(f"Failed to store generated HMAC secret for tenant: {tenant_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Failed to generate HMAC secret for tenant {tenant_id}: {str(e)}")
+            return None
+    
+    async def rotate_tenant_hmac_secret(self, tenant_id: str) -> Optional[str]:
+        """Generate new HMAC secret for tenant (alias for generate_tenant_hmac_secret)"""
+        return await self.generate_tenant_hmac_secret(tenant_id)
+    
+    async def has_tenant_hmac_secret(self, tenant_id: str) -> bool:
+        """Check if tenant has HMAC secret configured"""
+        try:
+            # Check cache first
+            if tenant_id in self._cache and 'hmac_secret' in self._cache[tenant_id]:
+                return True
+            
+            # Check Supabase
+            from database import db
+            tenant_data = await db.get_tenant_hmac_secret(tenant_id)
+            return tenant_data and tenant_data.get('hmac_secret_encrypted') is not None
+            
+        except Exception as e:
+            logger.error(f"Failed to check HMAC secret for tenant {tenant_id}: {str(e)}")
+            return False
+    
+    async def delete_tenant_hmac_secret(self, tenant_id: str) -> bool:
+        """Delete HMAC secret for tenant"""
+        try:
+            from database import db
+            
+            # Delete from Supabase
+            result = await db.delete_tenant_hmac_secret(tenant_id)
+            
+            if result.get('success'):
+                # Remove from cache
+                if tenant_id in self._cache and 'hmac_secret' in self._cache[tenant_id]:
+                    del self._cache[tenant_id]['hmac_secret']
+                logger.info(f"HMAC secret deleted for tenant: {tenant_id}")
+                return True
+            else:
+                logger.error(f"Failed to delete HMAC secret from Supabase for tenant {tenant_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete HMAC secret for tenant {tenant_id}: {str(e)}")
+            return False
+
     async def get_tenant_stats(self, tenant_id: str) -> Dict[str, bool]:
         """Get statistics about tenant's configured keys"""
         try:
             anthropic_configured = await self.has_tenant_key(tenant_id, 'anthropic')
             openai_configured = await self.has_tenant_key(tenant_id, 'openai')
+            hmac_configured = await self.has_tenant_hmac_secret(tenant_id)
             
             total_providers = 0
             if anthropic_configured:
@@ -251,6 +370,7 @@ class SecureKeyManager:
             return {
                 'anthropic_configured': anthropic_configured,
                 'openai_configured': openai_configured,
+                'hmac_configured': hmac_configured,
                 'total_providers': total_providers
             }
         except Exception as e:
@@ -258,6 +378,7 @@ class SecureKeyManager:
             return {
                 'anthropic_configured': False,
                 'openai_configured': False,
+                'hmac_configured': False,
                 'total_providers': 0
             }
 

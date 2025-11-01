@@ -4,7 +4,7 @@ import logging
 
 from core.config import settings
 from core.logger import logger
-from api import v1_router, health_router, rate_limit_middleware, add_cors_middleware
+from api import v1_router, health_router, rate_limit_middleware, add_cors_middleware, hmac_middleware
 
 
 # Setup logger for FastAPI
@@ -37,6 +37,9 @@ app = FastAPI(
     version=settings.api.version,
     lifespan=lifespan
 )
+
+# Add HMAC authentication middleware (before rate limiting)
+app.middleware("http")(hmac_middleware)
 
 # Add rate limiting middleware
 app.middleware("http")(rate_limit_middleware)

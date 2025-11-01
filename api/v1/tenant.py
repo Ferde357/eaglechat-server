@@ -10,6 +10,7 @@ from core.validators import (
     generate_tenant_id,
     generate_secure_api_key
 )
+from pydantic import BaseModel
 from database import db
 from core.wordpress_client import wp_client
 from core.logger import logger
@@ -59,13 +60,40 @@ async def register_tenant(request: TenantRegistrationRequest):
         tenant_id = generate_tenant_id()
         api_key = generate_secure_api_key()
         
+        # Handle HMAC secret and domain verification if provided
+        hmac_secret_encrypted = None
+        site_hash = None
+        hmac_configured = False
+        
+        if request.hmac_secret and request.site_domain:
+            # Encrypt HMAC secret for storage
+            from core.security.encryption import encryption
+            hmac_secret_encrypted = encryption.encrypt(request.hmac_secret)
+            
+            # Generate site verification hash
+            site_hash = encryption.generate_site_hash(request.site_domain, tenant_id)
+            hmac_configured = True
+            
+            logger.info(f"HMAC and domain verification configured for tenant: {tenant_id}")
+        
         # Register in database
-        result = await db.register_tenant(
-            tenant_id=tenant_id,
-            api_key=api_key,
-            site_url=request.site_url,
-            admin_email=request.admin_email
-        )
+        logger.info(f"Attempting database registration for tenant: {tenant_id}")
+        logger.info(f"Domain: {request.site_domain}, HMAC encrypted: {bool(hmac_secret_encrypted)}, Site hash: {bool(site_hash)}")
+        
+        try:
+            result = await db.register_tenant(
+                tenant_id=tenant_id,
+                api_key=api_key,
+                site_url=request.site_url,
+                admin_email=request.admin_email,
+                domain=request.site_domain,
+                hmac_secret_encrypted=hmac_secret_encrypted,
+                site_hash=site_hash
+            )
+            logger.info(f"Database registration result: {result}")
+        except Exception as db_error:
+            logger.error(f"Database registration failed with exception: {str(db_error)}")
+            raise
         
         if result.get('success'):
             logger.info(f"Successfully registered tenant: {tenant_id} for site: {request.site_url}")
@@ -73,7 +101,8 @@ async def register_tenant(request: TenantRegistrationRequest):
                 success=True,
                 tenant_id=tenant_id,
                 api_key=api_key,
-                message="Tenant registered successfully"
+                message="Tenant registered successfully",
+                hmac_configured=hmac_configured
             )
         else:
             error = result.get('error', 'Unknown error occurred')
@@ -118,4 +147,58 @@ async def validate_tenant(request: TenantValidationRequest):
         raise HTTPException(
             status_code=500,
             detail="Internal server error during validation"
+        )
+
+
+class HMACConfigRequest(BaseModel):
+    """Request model for HMAC configuration"""
+    tenant_id: str
+    api_key: str
+    hmac_secret: str
+
+
+@router.post("/configure-hmac")
+async def configure_hmac(request: HMACConfigRequest):
+    """Configure HMAC secret for tenant"""
+    try:
+        logger.info(f"HMAC configuration request for tenant: {request.tenant_id}")
+        
+        # Validate tenant credentials first
+        is_valid = await db.validate_tenant(request.tenant_id, request.api_key)
+        if not is_valid:
+            logger.warning(f"Invalid credentials for HMAC configuration: {request.tenant_id}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid tenant credentials"
+            )
+        
+        # Store the HMAC secret
+        from core.key_manager import KeyManager
+        key_manager = KeyManager()
+        
+        result = await key_manager.store_tenant_hmac_secret(
+            request.tenant_id, 
+            request.hmac_secret
+        )
+        
+        if result:
+            logger.info(f"HMAC secret configured successfully for tenant: {request.tenant_id}")
+            return {
+                "success": True,
+                "message": "HMAC secret configured successfully"
+            }
+        else:
+            logger.error(f"Failed to store HMAC secret for tenant: {request.tenant_id}")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to store HMAC secret"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during HMAC configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error during HMAC configuration"
         )

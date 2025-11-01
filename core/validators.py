@@ -9,6 +9,8 @@ class TenantRegistrationRequest(BaseModel):
     site_url: str = Field(..., description="WordPress site URL")
     admin_email: EmailStr = Field(..., description="Admin email address")
     callback_token: str = Field(..., description="Temporary token for WordPress callback verification")
+    site_domain: Optional[str] = Field(None, description="Normalized domain name for verification")
+    hmac_secret: Optional[str] = Field(None, description="HMAC secret for request signing")
     
     @validator('callback_token')
     def validate_callback_token(cls, v):
@@ -93,6 +95,46 @@ class TenantRegistrationRequest(BaseModel):
             v = v[:-1]
         
         return v
+    
+    @validator('site_domain')
+    def validate_site_domain(cls, v):
+        """Validate site domain format"""
+        if v is None:
+            return v
+        
+        # Normalize domain
+        domain = v.lower().strip()
+        
+        # Remove www. prefix
+        if domain.startswith('www.'):
+            domain = domain[4:]
+        
+        # Basic domain validation
+        import re
+        domain_pattern = re.compile(
+            r'^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$'
+        )
+        
+        if not domain_pattern.match(domain):
+            raise ValueError("Invalid domain format")
+        
+        if len(domain) > 253:
+            raise ValueError("Domain name too long")
+        
+        return domain
+    
+    @validator('hmac_secret')
+    def validate_hmac_secret(cls, v):
+        """Validate HMAC secret format"""
+        if v is None:
+            return v
+        
+        # HMAC secret should be a 64-character hex string (32 bytes)
+        import re
+        if not re.match(r'^[a-f0-9]{64}$', v.lower()):
+            raise ValueError("HMAC secret must be a 64-character hexadecimal string")
+        
+        return v.lower()
 
 
 class TenantRegistrationResponse(BaseModel):
@@ -100,6 +142,7 @@ class TenantRegistrationResponse(BaseModel):
     tenant_id: Optional[str] = None
     api_key: Optional[str] = None
     message: str
+    hmac_configured: Optional[bool] = False
     
 
 class TenantValidationRequest(BaseModel):

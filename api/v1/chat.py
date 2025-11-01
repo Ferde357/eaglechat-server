@@ -18,6 +18,8 @@ async def chat(request: ChatRequest):
     """Handle chat requests from WordPress tenants"""
     start_time = time.time()
     
+    logger.info(f"Chat endpoint received request for tenant: {request.tenant_id}")
+    
     try:
         # Set context for this request
         context_logger.set_context(
@@ -34,7 +36,9 @@ async def chat(request: ChatRequest):
         )
         
         # Validate tenant credentials
+        logger.info(f"Validating tenant credentials for: {request.tenant_id}")
         is_valid = await db.validate_tenant(request.tenant_id, request.api_key)
+        logger.info(f"Tenant validation result: {is_valid}")
         if not is_valid:
             context_logger.log_tenant_activity(
                 request.tenant_id,

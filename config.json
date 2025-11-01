@@ -1,0 +1,17 @@
+{
+  "logging": {
+    "level": "INFO",
+    "retention_days": 14,
+    "log_directory": "logs"
+  },
+  "api": {
+    "title": "Eagle Chat Server",
+    "description": "Multi-tenant chatbot backend for WordPress",
+    "version": "1.0.0",
+    "development_mode": true
+  },
+  "callback": {
+    "retry_attempts": 3,
+    "retry_delay_seconds": 3
+  }
+}

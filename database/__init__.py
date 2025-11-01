@@ -17,8 +17,8 @@ class Database:
         self.api_key_ops = APIKeyOperations(self.supabase_manager)
     
     # Tenant operations
-    async def register_tenant(self, tenant_id: str, api_key: str, site_url: str, admin_email: str, metadata=None):
-        return await self.tenant_ops.register_tenant(tenant_id, api_key, site_url, admin_email, metadata)
+    async def register_tenant(self, tenant_id: str, api_key: str, site_url: str, admin_email: str, metadata=None, domain=None, hmac_secret_encrypted=None, site_hash=None):
+        return await self.tenant_ops.register_tenant(tenant_id, api_key, site_url, admin_email, metadata, domain, hmac_secret_encrypted, site_hash)
     
     async def validate_tenant(self, tenant_id: str, api_key: str):
         return await self.tenant_ops.validate_tenant(tenant_id, api_key)
@@ -28,6 +28,19 @@ class Database:
     
     async def get_tenant_by_email(self, admin_email: str):
         return await self.tenant_ops.get_tenant_by_email(admin_email)
+    
+    # HMAC secret operations
+    async def store_tenant_hmac_secret(self, tenant_id: str, encrypted_secret: str):
+        return await self.tenant_ops.store_tenant_hmac_secret(tenant_id, encrypted_secret)
+    
+    async def get_tenant_hmac_secret(self, tenant_id: str):
+        return await self.tenant_ops.get_tenant_hmac_secret(tenant_id)
+    
+    async def delete_tenant_hmac_secret(self, tenant_id: str):
+        return await self.tenant_ops.delete_tenant_hmac_secret(tenant_id)
+    
+    async def get_tenant_hmac_domain(self, tenant_id: str):
+        return await self.tenant_ops.get_tenant_hmac_domain(tenant_id)
     
     # API key operations
     async def update_tenant_api_keys(self, tenant_id: str, anthropic_key_encrypted=None, openai_key_encrypted=None):

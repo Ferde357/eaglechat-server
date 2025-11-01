@@ -1,0 +1,391 @@
+### Eagle Chat Server - Complete API Test Suite
+### Updated with HMAC authentication and all endpoints
+### To use: Install REST Client extension in VS Code or use with IntelliJ IDEA
+
+### Variables
+@baseUrl = http://localhost:8000
+@contentType = application/json
+
+# These will be populated from responses - update manually for testing
+@tenant_id = YOUR-TENANT-ID-HERE
+@api_key = YOUR-API-KEY-HERE
+@hmac_secret = abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+
+###############################################################################
+# SECTION 1: HEALTH AND BASIC ENDPOINTS
+###############################################################################
+
+### 1. Health Check
+GET {{baseUrl}}/
+Accept: {{contentType}}
+
+### 2. Interactive API Documentation
+GET {{baseUrl}}/docs
+
+###############################################################################
+# SECTION 2: TENANT MANAGEMENT
+###############################################################################
+
+### 3. Register a new tenant
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://example-wordpress.com",
+  "admin_email": "admin@example.com",
+  "callback_token": "test_token_1234567890abcdef"
+}
+
+### 4. Register another tenant (different site)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://another-site.com",
+  "admin_email": "admin@another-site.com",
+  "callback_token": "another_test_token_xyz789"
+}
+
+### 5. Try to register with existing site URL (should fail with 400)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://example-wordpress.com",
+  "admin_email": "different@email.com",
+  "callback_token": "some_callback_token_456"
+}
+
+### 6. Try to register with existing email (should fail with 400)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://new-site.com",
+  "admin_email": "admin@example.com",
+  "callback_token": "new_site_callback_token_789"
+}
+
+### 7. Validate tenant credentials
+POST {{baseUrl}}/api/v1/validate
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}"
+}
+
+### 8. Validate with invalid credentials (should fail with 401)
+POST {{baseUrl}}/api/v1/validate
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "00000000-0000-0000-0000-000000000000",
+  "api_key": "invalid_api_key_12345"
+}
+
+###############################################################################
+# SECTION 3: HMAC CONFIGURATION
+###############################################################################
+
+### 9. Configure HMAC secret for tenant
+POST {{baseUrl}}/api/v1/configure-hmac
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "hmac_secret": "{{hmac_secret}}"
+}
+
+###############################################################################
+# SECTION 4: API KEY MANAGEMENT
+###############################################################################
+
+### 10. Configure AI provider API keys
+POST {{baseUrl}}/api/v1/configure-keys
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "anthropic_api_key": "sk-ant-test-key-for-validation",
+  "openai_api_key": "sk-test-openai-key-here"
+}
+
+### 11. Get API key status (masked keys)
+POST {{baseUrl}}/api/v1/get-key-status
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}"
+}
+
+### 12. Verify specific API key
+POST {{baseUrl}}/api/v1/verify-key
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "provider": "anthropic"
+}
+
+### 13. Remove specific API key
+POST {{baseUrl}}/api/v1/remove-key
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "provider": "anthropic"
+}
+
+###############################################################################
+# SECTION 5: HMAC-PROTECTED CHAT ENDPOINTS
+###############################################################################
+# Note: These require HMAC signature calculation
+# For manual testing, use the Postman pre-request script or calculate signatures manually
+
+### 14. Chat with AI (HMAC Protected) - Basic Message
+POST {{baseUrl}}/api/v1/chat
+Content-Type: {{contentType}}
+X-EagleChat-Signature: hmac-sha256=CALCULATE_SIGNATURE_HERE
+X-EagleChat-Timestamp: 1642781234
+X-EagleChat-Version: v1
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "session_id": "test_session_12345",
+  "message": "Hello, this is a test message. Please respond briefly.",
+  "ai_config": {
+    "model": "claude-3-sonnet",
+    "temperature": 0.7,
+    "max_tokens": 100,
+    "conversation_memory": "short"
+  }
+}
+
+### 15. Chat with AI - With Conversation History
+POST {{baseUrl}}/api/v1/chat
+Content-Type: {{contentType}}
+X-EagleChat-Signature: hmac-sha256=CALCULATE_SIGNATURE_HERE
+X-EagleChat-Timestamp: 1642781234
+X-EagleChat-Version: v1
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "session_id": "test_session_12345",
+  "message": "What did I just ask you?",
+  "ai_config": {
+    "model": "claude-3-sonnet",
+    "temperature": 0.5,
+    "max_tokens": 150,
+    "conversation_memory": "medium"
+  },
+  "conversation_history": [
+    {
+      "user_message": "Hello, this is a test message. Please respond briefly.",
+      "bot_response": "Hello! I understand this is a test. How can I help you today?",
+      "timestamp": "2025-01-24T10:30:00Z"
+    }
+  ]
+}
+
+### 16. Chat without HMAC headers (should fail with 401)
+POST {{baseUrl}}/api/v1/chat
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "session_id": "test_session_12345",
+  "message": "This should fail without HMAC headers",
+  "ai_config": {
+    "model": "claude-3-sonnet",
+    "temperature": 0.7,
+    "max_tokens": 100,
+    "conversation_memory": "short"
+  }
+}
+
+### 17. Chat with invalid HMAC signature (should fail with 401)
+POST {{baseUrl}}/api/v1/chat
+Content-Type: {{contentType}}
+X-EagleChat-Signature: hmac-sha256=invalid_signature_12345
+X-EagleChat-Timestamp: 1642781234
+X-EagleChat-Version: v1
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "session_id": "test_session_12345",
+  "message": "This should fail with invalid signature",
+  "ai_config": {
+    "model": "claude-3-sonnet",
+    "temperature": 0.7,
+    "max_tokens": 100,
+    "conversation_memory": "short"
+  }
+}
+
+### 18. Chat with expired timestamp (should fail with 401)
+POST {{baseUrl}}/api/v1/chat
+Content-Type: {{contentType}}
+X-EagleChat-Signature: hmac-sha256=CALCULATE_SIGNATURE_HERE
+X-EagleChat-Timestamp: 1642781234
+X-EagleChat-Version: v1
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "session_id": "test_session_12345",
+  "message": "This should fail with old timestamp",
+  "ai_config": {
+    "model": "claude-3-sonnet",
+    "temperature": 0.7,
+    "max_tokens": 100,
+    "conversation_memory": "short"
+  }
+}
+
+###############################################################################
+# SECTION 6: VALIDATION AND ERROR TESTS
+###############################################################################
+
+### 19. Test invalid email format (should fail with 400)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://test-site.com",
+  "admin_email": "not-an-email",
+  "callback_token": "test_callback_token_invalid_email"
+}
+
+### 20. Test invalid URL format (should fail with 400)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "not-a-url",
+  "admin_email": "test@example.com",
+  "callback_token": "test_callback_token_invalid_url"
+}
+
+### 21. Test with short callback token (should fail with 400)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://valid-site.com",
+  "admin_email": "valid@email.com",
+  "callback_token": "short"
+}
+
+### 22. Test without callback token (should fail with 422)
+POST {{baseUrl}}/api/v1/register
+Content-Type: {{contentType}}
+
+{
+  "site_url": "https://no-token-site.com",
+  "admin_email": "notoken@email.com"
+}
+
+### 23. Test with invalid API key format in configuration
+POST {{baseUrl}}/api/v1/configure-keys
+Content-Type: {{contentType}}
+
+{
+  "tenant_id": "{{tenant_id}}",
+  "api_key": "{{api_key}}",
+  "anthropic_api_key": "invalid-key-format",
+  "openai_api_key": "also-invalid"
+}
+
+###############################################################################
+# HMAC SIGNATURE CALCULATION EXAMPLES
+###############################################################################
+
+# Manual HMAC Signature Calculation (for reference):
+#
+# 1. Get current Unix timestamp: 1642781234
+# 2. Create string to sign: timestamp + "\n" + request_body
+# 3. Calculate HMAC-SHA256: hmac(secret, string_to_sign)
+# 4. Set header: X-EagleChat-Signature: hmac-sha256=<hex_signature>
+#
+# Python example:
+# import hmac, hashlib, time, json
+# timestamp = int(time.time())
+# body = json.dumps(request_data, separators=(',', ':'))
+# string_to_sign = f"{timestamp}\n{body}"
+# signature = hmac.new(secret.encode(), string_to_sign.encode(), hashlib.sha256).hexdigest()
+# headers['X-EagleChat-Signature'] = f'hmac-sha256={signature}'
+# headers['X-EagleChat-Timestamp'] = str(timestamp)
+
+###############################################################################
+# RATE LIMITING TEST
+###############################################################################
+
+### 24-43. Rate limiting test (send multiple requests quickly)
+### These 20 requests should succeed, additional ones should get 429
+
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+###
+GET {{baseUrl}}/
+
+### 44. This should trigger rate limiting (429 response)
+GET {{baseUrl}}/
+
+###############################################################################
+# END OF TEST SUITE
+###############################################################################
+
+# Instructions for testing:
+# 1. Start the FastAPI server: uvicorn main:app --reload
+# 2. Update @tenant_id, @api_key, and @hmac_secret variables from registration response
+# 3. For HMAC-protected endpoints, either:
+#    - Use Postman with the provided pre-request script
+#    - Calculate signatures manually using the provided examples
+#    - Use the bash script example from the README
+# 4. Run tests in order - some depend on previous test results
+# 5. Check server logs for detailed error information

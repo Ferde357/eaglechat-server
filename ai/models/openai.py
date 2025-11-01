@@ -1,4 +1,4 @@
-a"""
+"""
 OpenAI GPT API Integration
 """
 

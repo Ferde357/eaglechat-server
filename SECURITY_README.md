@@ -2,7 +2,8 @@
 
 ## Overview
 
-This document outlines the comprehensive security measures implemented for storing, retrieving, and protecting customer AI API keys in the EagleChat system. The architecture ensures zero financial risk to our platform while maintaining the highest security standards for customer data.
+This document outlines the comprehensive security measures implemented for storing, retrieving, and protecting customer AI API keys in the EagleChat system. 
+The architecture ensures to maintain the highest security standards for customer data.
 
 ## Security Architecture
 
@@ -70,24 +71,6 @@ Valid key → Fernet Encryption → Supabase tenants table
 - **Centralized management**: All key operations through FastAPI
 
 ## Encryption Implementation
-
-### WordPress Layer (Transmission Only)
-```php
-// WordPress no longer stores API keys locally
-// Keys are validated, formatted, and transmitted directly to FastAPI
-private function configure_api_keys_on_server($anthropic_key, $openai_key) {
-    // Format validation only
-    if (!empty($anthropic_key) && !preg_match('/^sk-ant-/', $anthropic_key)) {
-        return false; // Invalid Anthropic key format
-    }
-    if (!empty($openai_key) && !preg_match('/^sk-/', $openai_key)) {
-        return false; // Invalid OpenAI key format
-    }
-    
-    // Direct transmission to FastAPI (HTTPS only)
-    // No local storage or encryption in WordPress
-}
-```
 
 **Security Benefits:**
 - **No local storage**: WordPress never stores API keys
